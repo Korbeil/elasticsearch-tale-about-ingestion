@@ -1,0 +1,16 @@
+parameters: []
+
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    bind:
+      string $projectRoot: '%kernel.project_dir%'
+
+  App\:
+    resource: '../src/'
+    exclude:
+      - '../src/DependencyInjection/'
+      - '../src/Entity/'
+      - '../src/Kernel.php'
+      - '../src/Tests/'

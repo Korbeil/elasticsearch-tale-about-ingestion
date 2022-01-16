@@ -1,0 +1,56 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+
+  MangaDex\Api\Generated\Author\Normalizer\JaneObjectNormalizer: ~
+
+
+  JoliCode\Elastically\IndexNameMapper:
+    arguments:
+      $prefix: null # or a string to prefix index name
+      $indexClassMapping:
+        artist: App\Generated\Artist
+
+  JoliCode\Elastically\Serializer\StaticContextBuilder:
+    arguments:
+      $mapping:
+        App\Generated\Artist: []
+
+
+  JoliCode\Elastically\ResultSetBuilder:
+    arguments:
+      $indexNameMapper: '@JoliCode\Elastically\IndexNameMapper'
+      $contextBuilder: '@JoliCode\Elastically\Serializer\StaticContextBuilder'
+      $denormalizer: '@serializer'
+
+
+  JoliCode\Elastically\Client:
+    arguments:
+      $config:
+        connections:
+          - host: '127.0.0.1'
+            port: '9200'
+        elastically_mappings_provider:
+
+      $logger: '@logger'
+      $resultSetBuilder: '@JoliCode\Elastically\ResultSetBuilder'
+      $indexNameMapper: '@JoliCode\Elastically\IndexNameMapper'
+
+  JoliCode\Elastically\Indexer:
+    arguments:
+      $client: '@JoliCode\Elastically\Client'
+      $serializer: '@serializer'
+      $bulkMaxSize: 1000
+      $bulkRequestParams: []
+      $contextBuilder: '@JoliCode\Elastically\Serializer\StaticContextBuilder'
+
+  JoliCode\Elastically\Mapping\YamlProvider:
+    arguments:
+      $configurationDirectory: '%kernel.project_dir%/config/elasticsearch'
+
+  JoliCode\Elastically\IndexBuilder:
+    arguments:
+      $mappingProvider: '@JoliCode\Elastically\Mapping\YamlProvider'
+      $client: '@JoliCode\Elastically\Client'
+      $indexNameMapper: '@JoliCode\Elastically\IndexNameMapper'

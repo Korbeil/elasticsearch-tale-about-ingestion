@@ -1,0 +1,18 @@
+settings:
+  number_of_shards: 3
+  number_of_replicas: 1
+mappings:
+  dynamic: false
+  properties:
+    name:
+      type: text
+      fields:
+        search:
+          type: text
+          analyzer: icu_analyzer
+        sort:
+          type: icu_collation_keyword
+          index: false
+    normalized:
+      type: object
+      enabled: false
