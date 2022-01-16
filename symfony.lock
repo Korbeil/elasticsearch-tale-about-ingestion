@@ -1,4 +1,7 @@
 {
+    "composer/package-versions-deprecated": {
+        "version": "1.11.99.4"
+    },
     "composer/pcre": {
         "version": "1.0.0"
     },
@@ -20,8 +23,54 @@
             "config/routes/annotations.yaml"
         ]
     },
+    "doctrine/cache": {
+        "version": "2.1.1"
+    },
+    "doctrine/collections": {
+        "version": "1.6.8"
+    },
+    "doctrine/common": {
+        "version": "3.2.1"
+    },
+    "doctrine/dbal": {
+        "version": "3.2.1"
+    },
+    "doctrine/deprecations": {
+        "version": "v0.5.3"
+    },
+    "doctrine/doctrine-bundle": {
+        "version": "2.5",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "master",
+            "version": "2.4",
+            "ref": "f98f1affe028f8153a459d15f220ada3826b5aa2"
+        },
+        "files": [
+            "config/packages/doctrine.yaml",
+            "config/packages/prod/doctrine.yaml",
+            "config/packages/test/doctrine.yaml",
+            "src/Entity/.gitignore",
+            "src/Repository/.gitignore"
+        ]
+    },
+    "doctrine/event-manager": {
+        "version": "1.1.1"
+    },
+    "doctrine/instantiator": {
+        "version": "1.4.0"
+    },
     "doctrine/lexer": {
         "version": "1.2.2"
+    },
+    "doctrine/orm": {
+        "version": "2.11.0"
+    },
+    "doctrine/persistence": {
+        "version": "2.3.0"
+    },
+    "doctrine/sql-formatter": {
+        "version": "1.1.2"
     },
     "elasticsearch/elasticsearch": {
         "version": "v7.16.0"
@@ -44,8 +93,14 @@
             ".php-cs-fixer.dist.php"
         ]
     },
+    "friendsofphp/proxy-manager-lts": {
+        "version": "v1.0.5"
+    },
     "jolicode/elastically": {
         "version": "v1.5.0"
+    },
+    "laminas/laminas-code": {
+        "version": "4.5.1"
     },
     "nyholm/dsn": {
         "version": "2.0.1"
@@ -113,6 +168,12 @@
     "symfony/deprecation-contracts": {
         "version": "v3.0.0"
     },
+    "symfony/doctrine-bridge": {
+        "version": "v6.0.2"
+    },
+    "symfony/doctrine-messenger": {
+        "version": "v6.0.2"
+    },
     "symfony/dotenv": {
         "version": "v6.0.2"
     },
@@ -168,6 +229,18 @@
     "symfony/http-kernel": {
         "version": "v6.0.2"
     },
+    "symfony/messenger": {
+        "version": "6.0",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "master",
+            "version": "4.3",
+            "ref": "25e3c964d3aee480b3acc3114ffb7940c89edfed"
+        },
+        "files": [
+            "config/packages/messenger.yaml"
+        ]
+    },
     "symfony/options-resolver": {
         "version": "v6.0.0"
     },
@@ -190,6 +263,9 @@
         "version": "v6.0.2"
     },
     "symfony/property-info": {
+        "version": "v6.0.2"
+    },
+    "symfony/proxy-manager-bridge": {
         "version": "v6.0.2"
     },
     "symfony/routing": {

@@ -7,6 +7,8 @@ volumes:
     driver: local
   data03:
     driver: local
+  postgres-data:
+    driver: local
 
 networks:
   elastic:
@@ -100,13 +102,12 @@ services:
       - "5601:5601"
     networks:
       - elastic
-  admin:
-    image: stephanediondev/elasticsearch-admin
-    container_name: admin
+  postgres:
+    image: postgres:13
     environment:
-      ELASTICSEARCH_URL: "http://es01:9200"
-      SECRET_REGISTER: azerty
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5602:8080"
-    networks:
-      - elastic
+      - "5432:5432"

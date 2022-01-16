@@ -41,7 +41,7 @@ services:
     arguments:
       $client: '@JoliCode\Elastically\Client'
       $serializer: '@serializer'
-      $bulkMaxSize: 1000
+      $bulkMaxSize: 99999
       $bulkRequestParams: []
       $contextBuilder: '@JoliCode\Elastically\Serializer\StaticContextBuilder'
 

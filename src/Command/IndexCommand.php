@@ -4,30 +4,37 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Generated\Model\Artist;
-use Elastica\Document;
+use App\Messenger\IndexBatch;
+use Doctrine\ORM\EntityManagerInterface;
 use JoliCode\Elastically\IndexBuilder;
-use JoliCode\Elastically\Indexer;
 use Prewk\XmlStringStreamer;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 
 class IndexCommand extends Command
 {
     public function __construct(
         private IndexBuilder $indexBuilder,
-        private Indexer $indexer,
         private string $projectRoot,
+        private MessageBusInterface $messageBus,
+        private EntityManagerInterface $entityManager,
     ) {
-        parent::__construct(null);
+        parent::__construct();
     }
 
     protected function configure(): void
     {
         $this
             ->setName('app:index')
+            ->addOption('refreshInterval')
+            ->addOption('replica')
+            ->addOption('workers')
+            ->addOption('bulkSize', mode: InputOption::VALUE_REQUIRED, default: 1000)
         ;
     }
 
@@ -37,81 +44,92 @@ class IndexCommand extends Command
         $start = microtime(true);
 
         $index = $this->indexBuilder->createIndex('artist');
-//        $index->getSettings()->setRefreshInterval('-1');
-//        $replicas = $index->getSettings()->getNumberOfReplicas();
-//        $index->getSettings()->setNumberOfReplicas(0);
+        $sfStyle->writeln(sprintf('Indexing `%s` with %d bulk size.', $index->getName(), $input->getOption('bulkSize')));
+
+        if ($input->getOption('refreshInterval')) {
+            $sfStyle->writeln('RefreshInterval optimization');
+            $refreshInterval = $index->getSettings()->getRefreshInterval();
+            $index->getSettings()->setRefreshInterval('-1');
+        }
+
+        if ($input->getOption('replica')) {
+            $sfStyle->writeln('Replica optimization');
+            $replicas = $index->getSettings()->getNumberOfReplicas();
+            $index->getSettings()->setNumberOfReplicas(0);
+        }
 
         $count = 0;
         $progress = $sfStyle->createProgressBar();
         $progress->start();
 
-        foreach ($this->collectArtists() as [$id, $artist]) {
-            $this->indexer->scheduleCreate($index, new Document($id, $artist));
-            $progress->advance();
-            ++$count;
+        $stamps = [];
+        if (!$input->getOption('workers')) {
+            $stamps[] = new ReceivedStamp('async');
+        } else {
+            $sfStyle->writeln('Using workers');
+        }
+
+        foreach ($this->collectArtists($index->getName(), $input->getOption('bulkSize')) as $message) {
+            $this->messageBus->dispatch($message, $stamps);
+
+            $progress->advance(\count($message->xmlArtists));
+            $count += \count($message->xmlArtists);
+        }
+
+        $progress->finish();
+
+        if ($input->getOption('workers')) {
+            $reverseProgress = $sfStyle->createProgressBar($count);
+
+            while (($messages = $this->remainingMessages()) > 0) {
+                $reverseProgress->setProgress($messages * $input->getOption('bulkSize'));
+            }
+
+            $reverseProgress->finish();
         }
 
         $this->indexBuilder->markAsLive($index, 'artist');
-//        $index->getSettings()->setNumberOfReplicas($replicas);
+
+        if ($input->getOption('refreshInterval')) {
+            $index->getSettings()->setRefreshInterval($refreshInterval);
+        }
+
+        if ($input->getOption('replica')) {
+            $index->getSettings()->setNumberOfReplicas($replicas);
+        }
 
         $sfStyle->success(sprintf('Indexed %d documents in %d seconds !', $count, microtime(true) - $start));
 
         return 0;
     }
 
-    private function collectArtists(): \Generator
+    private function collectArtists(string $indexName, int $bulkSize): \Generator
     {
         $streamer = XmlStringStreamer::createUniqueNodeParser(sprintf('%s/data/discogs_artists.xml', $this->projectRoot), ['uniqueNode' => 'artist']);
 
+        $count = 0;
+        $batch = [];
         while ($node = $streamer->getNode()) {
-            $simpleXml = simplexml_load_string($node);
+            $batch[] = $node;
+            ++$count;
 
-            $normalized = (array) $simpleXml;
+            if ($bulkSize === $count) {
+                yield new IndexBatch($indexName, $batch);
 
-            $artistId = $normalized['id'];
-            unset($normalized['id']);
-            unset($normalized['profile']);
-            unset($normalized['images']);
-            if (array_key_exists('urls', $normalized)) {
-                $normalized['urls'] = ((array) $normalized['urls'])['url'];
-
-                if ($normalized['urls'] instanceof \SimpleXMLElement) {
-                    unset($normalized['urls']);
-                }
+                $count = 0;
+                $batch = [];
             }
-            if (array_key_exists('realname', $normalized) && $normalized['realname'] instanceof \SimpleXMLElement) {
-                unset($normalized['realname']);
-            }
-            if (array_key_exists('namevariations', $normalized)) {
-                $normalized['namevariations'] = ((array) $normalized['namevariations'])['name'];
-            }
-            if (array_key_exists('aliases', $normalized)) {
-                if (0 === $normalized['aliases']->count()) {
-                    unset($normalized['aliases']);
-                } else {
-                    $normalized['aliases'] = ((array) $normalized['aliases'])['name'];
-                }
-            }
-            if (array_key_exists('members', $normalized)) {
-                $normalized['members'] = ((array) $normalized['members'])['name'];
-            }
-            if (array_key_exists('groups', $normalized)) {
-                if (0 === $normalized['groups']->count()) {
-                    unset($normalized['groups']);
-                } else {
-                    $normalized['groups'] = ((array)$normalized['groups'])['name'];
-                }
-            }
-
-            if (\count($normalized) <= 3) {
-                continue;
-            }
-
-            $artist = new Artist();
-            $artist->setName($normalized['name']);
-            $artist->setNormalized($normalized);
-
-            yield [$artistId, $artist];
         }
+
+        if (\count($batch) > 0) {
+            yield new IndexBatch($indexName, $batch);
+        }
+    }
+
+    private function remainingMessages(): int
+    {
+        $count = $this->entityManager->getConnection()->fetchNumeric('SELECT COUNT(*) FROM messenger_messages;');
+
+        return $count[0];
     }
 }
